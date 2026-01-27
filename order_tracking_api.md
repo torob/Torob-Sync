@@ -129,7 +129,7 @@ We will poll your endpoint for new or updated records since our last request. Yo
 
 | Parameter               | Type    | Required | Description                                                                                    |
 | ----------------------- | ------- | -------- | ---------------------------------------------------------------------------------------------- |
-| `purchase_timestamp_gt` | String  | Yes      | "Greater Than". Returns all orders from your platform with a purchase_timestamp greater than the specified value. The value must be in ISO 8061 format (UTC). |
+| `purchase_timestamp_gt` | String  | Yes      | "Greater Than". Returns all orders from your platform with a purchase_timestamp greater than the specified value. The value must be in ISO 8601 format (UTC). |
 | `limit`                 | Integer | Yes      | The maximum number of records to return. The value must be greater than 0 and less than or equal to 1000. |
 
 **Example Request**: `GET https://api.yourshop.com/torob/v1/orders?purchase_timestamp_gt=2025-09-21T10:00:00.000000Z&limit=1000`
