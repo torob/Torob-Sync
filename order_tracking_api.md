@@ -147,6 +147,7 @@ The response must be a JSON object with the `Content-Type` header set to `applic
       "last_updated_timestamp": "2025-09-21T10:20:30.456789Z",
       "torob_clid": "a1b2c3d4-e5f6-7890-g1h2-i3j4k5l6m7n8",
       "status": "completed",
+      "psp": "zarinpal",
       "order_value": 500000,
       "shipping_amount": 90000,
       "phone_number": "+989123456789",
@@ -187,9 +188,10 @@ If there are no new orders matching the query, return an empty `data` array.
 | `last_updated_timestamp` | String  | Required | The ISO 8601 timestamp (UTC) of when the order was last modified. For new orders, this can be the same as `purchase_timestamp`. |
 | `torob_clid`             | String  | Required | The unique tracking identifier passed to you on user redirection. |
 | `status`                 | String  | Required | The current status of the order. Must be one of `completed` or `cancelled`. |
+| `psp`                    | String  | Optional | The payment service provider used for the order. If present, it must be a string. |
 | `order_value`            | Integer | Optional | The total value of all items in the order, as an integer in Toman, excluding postage fees and taxes, but after any discounts have been applied. If present, it must be numeric. |
 | `shipping_amount`        | Integer | Optional | The shipping and handling cost for the order, as an integer in Toman. If present, it must be numeric. |
-| `phone_number`           | String  | Optional | User's phone number. |
+| `phone_number`           | String  | Optional | User's phone number. If present, it must be a string that can be normalized to a valid mobile number such as `09xxxxxxxxx`. Different numeric input formats are acceptable. |
 | `products`               | Array   | Optional | An array of objects, where each object represents an item in the order. If present, it must be an array. |
 | `products.product_url`   | String  | Conditional | A direct link to the product page on your website. Required for each item when `products` is present. |
 | `products.product_price` | Integer | Conditional | The price of a single unit of the product, as an integer in Toman. Required for each item when `products` is present. |
