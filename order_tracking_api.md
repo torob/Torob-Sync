@@ -144,11 +144,11 @@ The response must be a JSON object with the `Content-Type` header set to `applic
   "data": [
     {
       "purchase_timestamp": "2025-09-21T10:20:30.456789Z",
+      "last_updated_timestamp": "2025-09-21T10:20:30.456789Z",
       "torob_clid": "a1b2c3d4-e5f6-7890-g1h2-i3j4k5l6m7n8",
+      "status": "completed",
       "order_value": 500000,
       "shipping_amount": 90000,
-      "status": "completed",
-      "last_updated_timestamp": "2025-09-21T10:20:30.456789Z",
       "phone_number": "+989123456789",
       "products": [
         {
@@ -179,21 +179,28 @@ If there are no new orders matching the query, return an empty `data` array.
 ### 3.4. Response Field Details
 > **Note**: All timestamps must be provided in the ISO 8601 format and specified in the UTC timezone, indicated by a `Z` suffix (e.g., `2025-09-21T10:20:30.456789Z`).
 
-> **Note**: All monetary fields (`order_value`, `shipping_amount`, `products.product_price`) must be provided as integers in Toman.
+> **Note**: If you include monetary fields (`order_value`, `shipping_amount`, `products.product_price`), provide them as integers in Toman.
 
 | Field                    | Type    | Required | Description |
 | ------------------------ | ------- | -------- | ----------- |
 | `purchase_timestamp`     | String  | Required | The ISO 8601 timestamp (UTC) of when the order was initially placed. |
-| `torob_clid`              | String  | Required | The unique tracking identifier passed to you on user redirection. |
-| `order_value`            | Integer | Required | The total value of all items in the order, as an integer in Toman, excluding postage fees and taxes, but after any discounts have been applied. |
-| `shipping_amount`        | Integer | Required | The shipping and handling cost for the order, as an integer in Toman. |
-| `status`                 | String  | Required | The current status of the order. Must be one of `completed` or `cancelled`. |
 | `last_updated_timestamp` | String  | Required | The ISO 8601 timestamp (UTC) of when the order was last modified. For new orders, this can be the same as `purchase_timestamp`. |
-| `phone_number`           | String  | Required | User's phone number. |
-| `products`               | Array   | Required | An array of objects, where each object represents an item in the order. |
-| `products.product_url`   | String  | Required | A direct link to the product page on your website. |
-| `products.product_price` | Integer | Required | The price of a single unit of the product, as an integer in Toman. |
-| `products.quantity`      | Integer | Required | The number of units of this product purchased. |
+| `torob_clid`             | String  | Required | The unique tracking identifier passed to you on user redirection. |
+| `status`                 | String  | Required | The current status of the order. Must be one of `completed` or `cancelled`. |
+| `order_value`            | Integer | Optional | The total value of all items in the order, as an integer in Toman, excluding postage fees and taxes, but after any discounts have been applied. If present, it must be numeric. |
+| `shipping_amount`        | Integer | Optional | The shipping and handling cost for the order, as an integer in Toman. If present, it must be numeric. |
+| `phone_number`           | String  | Optional | User's phone number. |
+| `products`               | Array   | Optional | An array of objects, where each object represents an item in the order. If present, it must be an array. |
+| `products.product_url`   | String  | Conditional | A direct link to the product page on your website. Required for each item when `products` is present. |
+| `products.product_price` | Integer | Conditional | The price of a single unit of the product, as an integer in Toman. Required for each item when `products` is present. |
+| `products.quantity`      | Integer | Conditional | The number of units of this product purchased. Required for each item when `products` is present. |
+
+Only these top-level fields are required in every order:
+
+- `purchase_timestamp`
+- `last_updated_timestamp`
+- `torob_clid`
+- `status`
 
 ## 4. Order Cancellations & Updates
 To account for cancelled orders, you must provide updates for up to 7 days after the initial purchase.
