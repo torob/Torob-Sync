@@ -75,7 +75,16 @@ The order tracking process follows these steps:
 ## API Implementation Requirements
 You are required to create a secure, RESTful API endpoint that we can poll for order data. The data returned from this endpoint must be filtered to include only orders placed by users we referred to your site.
 
-### 3.1. Endpoint & Authentication
+### 3.1. Feature Enablement for Shop Generators
+For shop generator platforms and reusable integrations (such as Mixin, WooCommerce, and similar systems), this order tracking feature must be controllable per shop.
+
+- The feature must not be permanently enabled for all shops by default.
+- There must be a setting or configuration option that allows each shop to enable or disable the order tracking integration for its own store.
+- Shops must be able to turn this access on or off whenever they want.
+
+This requirement ensures that each shop explicitly controls whether Torob can access its order tracking data.
+
+### 3.2. Endpoint & Authentication
 - **URL**: You will need to provide us with a stable URL for your API endpoint.
   - **URL Structure**: Your endpoint must follow the structure `https://[your_api_hostname]/[optional_path]/torob/v1/orders`, which is composed of the following parts:
     - `[your_api_hostname]`: The domain or subdomain of your API (e.g., `api.yourshop.com`).
@@ -124,7 +133,7 @@ Many standard JWT libraries automatically validate the `exp` and `nbf` claims, b
 
 > **Note on Server Time**: Correct server time synchronization is crucial. If your server's clock is inaccurate, it may incorrectly reject valid tokens.
 
-### 3.2. Request Parameters
+### 3.3. Request Parameters
 We will poll your endpoint for new or updated records since our last request. Your endpoint must support filtering by an incrementing order id.
 
 | Parameter               | Type    | Required | Description                                                                                    |
@@ -134,7 +143,7 @@ We will poll your endpoint for new or updated records since our last request. Yo
 
 **Example Request**: `GET https://api.yourshop.com/torob/v1/orders?purchase_timestamp_gt=2025-09-21T10:00:00.000000Z&limit=1000`
 
-### 3.3. Response Format
+### 3.4. Response Format
 The response must be a JSON object with the `Content-Type` header set to `application/json`. The records must be sorted in ascending order by their `purchase_timestamp`.
 
 #### Success Response (200 OK)
@@ -177,7 +186,7 @@ If there are no new orders matching the query, return an empty `data` array.
 }
 ```
 
-### 3.4. Response Field Details
+### 3.5. Response Field Details
 > **Note**: All timestamps must be provided in the ISO 8601 format and specified in the UTC timezone, indicated by a `Z` suffix (e.g., `2025-09-21T10:20:30.456789Z`).
 
 > **Note**: If you include monetary fields (`order_value`, `shipping_amount`, `products.product_price`), provide them as integers in Toman.
@@ -188,7 +197,7 @@ If there are no new orders matching the query, return an empty `data` array.
 | `last_updated_timestamp` | String  | Required | The ISO 8601 timestamp (UTC) of when the order was last modified. For new orders, this can be the same as `purchase_timestamp`. |
 | `torob_clid`             | String  | Required | The unique tracking identifier passed to you on user redirection. |
 | `status`                 | String  | Required | The current status of the order. Must be one of `completed` or `cancelled`. |
-| `psp`                    | String  | Optional | The payment service provider used for the order. If present, it must be a string. |
+| `psp`                    | String  | Optional | The payment service provider used for the order. If present, it must be a string. For shops that use TorobPay, this field is required for orders paid via TorobPay, and its value must be `"torobpay"` for those orders. Other gateways do not need to be specified, but TorobPay orders must not return this field as empty. |
 | `order_value`            | Integer | Optional | The total value of all items in the order, as an integer in Toman, excluding postage fees and taxes, but after any discounts have been applied. If present, it must be numeric. |
 | `shipping_amount`        | Integer | Optional | The shipping and handling cost for the order, as an integer in Toman. If present, it must be numeric. |
 | `phone_number`           | String  | Optional | User's phone number. If present, it must be a string that can be normalized to a valid mobile number such as `09xxxxxxxxx`. Different numeric input formats are acceptable. |
