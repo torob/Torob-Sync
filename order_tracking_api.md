@@ -81,6 +81,7 @@ For shop generator platforms and reusable integrations (such as Mixin, WooCommer
 - The feature must not be permanently enabled for all shops by default.
 - There must be a setting or configuration option that allows each shop to enable or disable the order tracking integration for its own store.
 - Shops must be able to turn this access on or off whenever they want.
+- If a shop has not enabled this access, the API must not return order data to Torob and should respond with HTTP `402`.
 
 This requirement ensures that each shop explicitly controls whether Torob can access its order tracking data.
 
@@ -185,6 +186,9 @@ If there are no new orders matching the query, return an empty `data` array.
   "data": []
 }
 ```
+
+#### Access Disabled Response (402)
+If the shop has not allowed Torob to access its order data, the endpoint should return HTTP `402` instead of returning order records.
 
 ### 3.5. Response Field Details
 > **Note**: All timestamps must be provided in the ISO 8601 format and specified in the UTC timezone, indicated by a `Z` suffix (e.g., `2025-09-21T10:20:30.456789Z`).
