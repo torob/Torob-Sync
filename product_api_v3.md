@@ -136,7 +136,7 @@ The request body is JSON and will be **one of** the following formats:
 | `category_name`    | string         | Optional | Product category (max 200 chars) |
 | `image_links`      | list[string]   | Required | Product images (first must be main image, each max 1000 chars) |
 | `short_desc`       | string         | Optional | Brief description (max 500 chars) |
-| `spec`             | dict           | Optional | Key-value pairs of specifications |
+| `spec`             | dict           | Required | Key-value pairs of specifications (if there's no spec for the product, empty dictionary must be sent) |
 | `guarantee`        | string         | Optional | Warranty information (max 200 chars) |
 | `date_added`       | string         | Required | ISO 8601 timestamp with timezone |
 | `date_updated`     | string         | Optional | ISO 8601 timestamp with timezone (required if implementing `date_updated_desc` sort) |
