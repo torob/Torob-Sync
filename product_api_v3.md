@@ -65,6 +65,19 @@ The request body is JSON and will be **one of** the following formats:
 {"page": 1, "sort": "date_added_desc"}
 ```
 
+#### Option 4: Fetch products with cursor pagination
+The first request omits `cursor`; subsequent requests must send the previous response's `next_cursor` unchanged as a string. Cursor pagination uses a fixed page size of 100 and must not include `page`, `limit`, or `size`.
+
+First request:
+```json
+{"sort": "product_id_desc"}
+```
+
+Subsequent request:
+```json
+{"cursor": "12345", "sort": "product_id_desc"}
+```
+
 **Parameter Details:**
 
 | Parameter      | Type         | Description |
@@ -72,11 +85,13 @@ The request body is JSON and will be **one of** the following formats:
 | `page_urls`    | list[string] | List of product URLs (minimum 1 item) |
 | `page_uniques` | list[string] | List of unique product identifiers (minimum 1 item) |
 | `page`         | integer      | Page number (starts from 1) |
-| `sort`         | string       | Sorting method: `date_added_desc` or `date_updated_desc` |
+| `sort`         | string       | Sorting method: `date_added_desc`, `date_updated_desc`, or `product_id_desc` |
+| `cursor`       | string       | Cursor returned as `next_cursor` by the previous cursor-based response |
 
 **Sort Options:**
 - `date_added_desc`: Sort by date added (newest first) - Required for all shops
 - `date_updated_desc`: Sort by date updated (newest first) - Required only for large shops and shop builders
+- `product_id_desc`: Sort by product ID (highest first) and required for cursor pagination.
 
 > **Important**: Do not set default values for parameters. If the request body is empty or has invalid parameters, return a 400 error.
 
@@ -88,6 +103,7 @@ The request body is JSON and will be **one of** the following formats:
   "current_page": 1,
   "total": 150,
   "max_pages": 2,
+  "next_cursor": null,
   "products": [
     {
       "page_unique": "12412_1",
@@ -123,8 +139,9 @@ The request body is JSON and will be **one of** the following formats:
 | ------------------ | -------------- | -------- | ----------- |
 | `api_version`      | string         | Required | Must be `"torob_api_v3"` |
 | `current_page`     | integer        | Required | Current page number |
-| `total`            | integer        | Required | Total number of products |
-| `max_pages`        | integer        | Required | Total pages (100 products per page) |
+| `total`            | integer/null   | Required | Total number of products; may be null with cursor pagination |
+| `max_pages`        | integer/null   | Required | Total pages (100 products per page); may be null with cursor pagination |
+| `next_cursor`      | string/null   | Optional | Cursor for the next request; null when there are no more products |
 | `page_unique`      | string         | Required | Unique product identifier (max 200 chars). Must remain constant. |
 | `page_url`         | string         | Required | Absolute URL to product page (max 1500 chars) |
 | `product_group_id` | string         | Optional | Groups product variants (e.g., different colors) (max 200 chars) |
@@ -166,7 +183,7 @@ All requests include a JWT token for authentication. See the [Token Guide](torob
 
 ## 4. Important Notes
 
-1. **Pagination**: Pages start from 1. Each page (except the last) must contain exactly 100 products.
+1. **Pagination**: Page-based requests start from 1. Each page (except the last) must contain exactly 100 products. Cursor-based requests use `sort: product_id_desc`, a fixed page size of 100, and continue with `next_cursor`.
 
 2. **Free Products**: If `availability` is `true` and `current_price` is `0`, the product is displayed as free.
 
@@ -207,6 +224,26 @@ curl --header "Content-Type: application/json" \
   "products": [...]
 }
 ```
+
+### Fetching Products with Cursor Pagination
+
+**First request:**
+```bash
+curl --header "Content-Type: application/json" \
+     --header "Accept: application/json" \
+     --header "X-Torob-Token: [JWT]" \
+     --header "X-Torob-Token-Version: 1" \
+     --request POST \
+     --data '{"sort": "product_id_desc"}' \
+     'https://example.com/torob_api/v3/products'
+```
+
+**Next request:**
+```json
+{"cursor": "12345", "sort": "product_id_desc"}
+```
+
+The shop returns `next_cursor` in the response. Send it unchanged as `cursor` in the next request. Return `next_cursor: null` on the final page. Do not send `page`, `limit`, or `size` in cursor mode.
 
 ### Fetching a Single Product
 
@@ -275,7 +312,8 @@ class Result:
     api_version: str
     current_page: int
     total: int
-    max_pages: int
+    max_pages: int | None
+    next_cursor: str | None
     products: list[Product]
 
 class Product:
