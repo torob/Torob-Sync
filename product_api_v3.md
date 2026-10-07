@@ -138,7 +138,7 @@ Subsequent request:
 | Field              | Type           | Required | Description |
 | ------------------ | -------------- | -------- | ----------- |
 | `api_version`      | string         | Required | Must be `"torob_api_v3"` |
-| `current_page`     | integer        | Required | Current page number |
+| `current_page`     | integer/null   | Optional | Current page number; send it with page-based pagination, may be omitted with cursor pagination |
 | `total`            | integer/null   | Required | Total number of products; may be null with cursor pagination |
 | `max_pages`        | integer/null   | Required | Total pages (100 products per page); may be null with cursor pagination |
 | `next_cursor`      | string/null   | Optional | Cursor for the next request; null when there are no more products |
@@ -243,7 +243,7 @@ curl --header "Content-Type: application/json" \
 {"cursor": "12345", "sort": "product_id_desc"}
 ```
 
-The shop returns `next_cursor` in the response. Send it unchanged as `cursor` in the next request. Return `next_cursor: null` on the final page. Do not send `page`, `limit`, or `size` in cursor mode.
+The shop returns `next_cursor` in the response. Send it unchanged as `cursor` in the next request. Return `next_cursor: null` on the final page. Do not send `page`, `limit`, or `size` in cursor mode. Cursor requests carry no page number, so `current_page` may be omitted from cursor responses.
 
 ### Fetching a Single Product
 
@@ -310,7 +310,7 @@ or
 ```python
 class Result:
     api_version: str
-    current_page: int
+    current_page: int | None  # may be omitted with cursor pagination
     total: int
     max_pages: int | None
     next_cursor: str | None
