@@ -19,6 +19,12 @@ APIs for syncing product information with Torob:
 - [Token Guide](torob_api_token_guide.md) - JWT authentication for Product API v3
 - [Product Webhook](product_webhook.md) - Notify Torob of product updates in real-time
 
+## Shop API
+
+API for shops and shop generators to manage a Torob shop panel from code:
+
+- [Shop API](shop_api.md) - Read products and their Torob statuses, and turn products on or off. Shop generators connect to each shop with the shop's approval.
+
 ## Order Tracking API
 
 API for tracking orders originating from Torob:
@@ -30,6 +36,7 @@ API for tracking orders originating from Torob:
 1. **For new integrations**: Use [Product API v3](product_api_v3.md) with [JWT authentication](torob_api_token_guide.md)
 2. **For real-time updates**: Implement the [Product Webhook](product_webhook.md)
 3. **For order tracking**: Implement the [Order Tracking API](order_tracking_api.md)
+4. **To manage a shop panel from code**: Use the [Shop API](shop_api.md)
 
 ## Support
 
