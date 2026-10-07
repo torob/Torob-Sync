@@ -50,7 +50,8 @@ Never send the token in the URL.
 ### 2.1. Shops
 
 Create a token in your Torob shop panel. The token is shown only once; store it safely. Creating a
-new token revokes the previous one. Only users of the shop can create or revoke its token.
+new token revokes the previous one. Only users of the shop can create or revoke its token, and a
+token stops working if the user who created it is removed from the shop.
 
 A shop token works only for its own shop. The `domain` parameter (section 4) is optional; if you
 send it, it must be your shop's domain.
@@ -171,9 +172,9 @@ All of the shop's products, newest first, with cursor pagination.
 | --------- | ---- | -------- | ----------- |
 | `domain` | string | Generators | The shop |
 | `page_size` | integer | Optional | Items per page, default 100, at most 500 |
-| `cursor` | string | Optional | Taken from a previous `next` or `previous` link |
+| `cursor` | string | Optional | Taken from a previous `next` or `previous` link (an invalid cursor gets 400) |
 | `status` | string | Optional | Only products with this status (section 4.2), or `no_problem` |
-| `updated_since` | datetime | Optional | Only products changed at or after this time (ISO 8601) |
+| `updated_since` | datetime | Optional | Only products changed at or after this time (ISO 8601; without an offset it is UTC) |
 
 ```json
 {
@@ -194,8 +195,12 @@ All of the shop's products, newest first, with cursor pagination.
 }
 ```
 
-Follow `next` until it is `null`. To sync only changes, remember when your last sync started and
-pass it as `updated_since`.
+Follow `next` until it is `null`.
+
+To sync only changes, pass the largest `updated_at` you received, minus a few minutes, as the next
+`updated_since`. A change can become visible a little after it happened, so the overlap makes sure
+nothing is missed; some products may come back twice. URL-encode the value (an unencoded `+` in
+`+03:30` turns into a space), or send it in UTC with `Z`, for example `2026-10-07T08:00:00Z`.
 
 ### 4.5. `POST /products/status/`
 
@@ -230,14 +235,15 @@ Body: `{"product_ids": ["12412_1", "missing"]}` — 1 to 5,000 product IDs.
 | Status | Body | Meaning |
 | ------ | ---- | ------- |
 | 400 | `{"error": "..."}` | The body is malformed or breaks a limit (`"invalid request body"`), or the connection `code` is wrong, used, or expired |
-| 400 | `{"detail": "..."}` | A wrong `domain`, a missing `domain` for a generator, or an unknown `status` |
+| 400 | `{"detail": "..."}` | A wrong `domain`, a missing `domain` for a generator, an unknown `status`, or an invalid `cursor` |
 | 401 | `{"detail": "Unauthorized"}` | Missing or invalid token, or a request from an IP the token does not allow |
-| 403 | `{"detail": "..."}` | The token may not do this, for example no active connection to the shop |
+| 403 | `{"detail": "..."}` | The token may not do this: for example, no active connection to the shop, or the user who created a shop token was removed from the shop |
 | 404 | `{"error": "..."}` | The connection or shop was not found |
 | 429 | `{}` | Too many requests |
 
-Each token may send up to 5 product requests per second. Batch product IDs (up to 5,000 per
-request) instead of sending one request per product.
+Each token may send up to 5 requests per second **for each shop**, across all Shop API endpoints. A
+shop generator therefore gets 5 per second for every connected shop. Batch product IDs (up to 5,000
+per request) instead of sending one request per product.
 
 ## 6. Example Requests
 
