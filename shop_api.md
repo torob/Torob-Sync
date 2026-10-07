@@ -49,8 +49,10 @@ Never send the token in the URL.
 
 ### 2.1. Shops
 
-Create a token in your Torob shop panel. The token is shown only once; store it safely. Creating a
-new token revokes the previous one. Only users of the shop can create or revoke its token, and a
+Create a token on the **API access** page of your Torob shop panel
+(<https://panel.torob.com/s/apiAccess>). The token is shown only once; store it safely. Creating a
+new token revokes the previous one. The same page lists the shop generators connected to your shop
+and lets you disconnect them. Only users of the shop can create or revoke its token, and a
 token stops working if the user who created it is removed from the shop.
 
 A shop token works only for its own shop. The `domain` parameter (section 4) is optional; if you
