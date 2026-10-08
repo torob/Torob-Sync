@@ -28,7 +28,8 @@ sequenceDiagram
 ## 1. Introduction
 
 The Shop API lets shops and shop generators (shop builders) do from code what the Torob shop panel
-does: read the shop's products as Torob sees them, and turn products on or off on Torob.
+does: read the shop's products as Torob sees them, turn products on or off on Torob, and read the
+shop's product stats on Torob.
 
 - **Shops** call the API for their own shop with a token they create in their Torob shop panel.
 - **Shop generators** call it on behalf of the shops built on their platform. Each shop must
@@ -231,6 +232,41 @@ Body: `{"product_ids": ["12412_1", "missing"]}` — 1 to 5,000 product IDs.
 ```json
 {"results": [{"product_id": "12412_1", "found": true}, {"product_id": "missing", "found": false}]}
 ```
+
+### 4.7. `GET /summary/`
+
+How many of the shop's products are in each group, and why products are not accessible. Use it to
+show the shop's Torob stats in your own dashboard.
+
+```json
+{
+  "calculated_at": "2026-10-07T13:00:00Z",
+  "total": 900,
+  "available": 600,
+  "not_available": 100,
+  "not_accessible": 100,
+  "not_active": 50,
+  "deleted": 50,
+  "not_accessible_errors": [{"error_title": "404:download_http_status_error", "count": 70}]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `total` | All of the shop's products on Torob |
+| `deleted` | Deleted |
+| `not_active` | Not deleted, but deactivated |
+| `not_accessible` | Active, but Torob cannot reach the product page |
+| `not_available` | Reachable, but out of stock |
+| `available` | Reachable and in stock |
+| `not_accessible_errors` | Why products are not accessible, largest first, in the same format as a product's `error_title` |
+| `calculated_at` | When these numbers were computed; `null` for a new shop before its first computation, with all counts 0 |
+
+- The groups do not overlap and add up to `total`. Product `statuses` (section 4.2) are independent
+  flags, and a product can have several, so `not_accessible` here is not necessarily the number of
+  products that `GET /products/?status=page_not_accessible` returns.
+- The numbers are not live: the counts are recomputed at least every two days, and the error
+  reasons about once a day.
 
 ## 5. Errors and Limits
 
