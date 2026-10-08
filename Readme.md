@@ -23,7 +23,7 @@ APIs for syncing product information with Torob:
 
 API for shops and shop generators to manage a Torob shop panel from code:
 
-- [Shop API](shop_api.md) - Read products and their Torob statuses, turn products on or off, and read the shop's product stats. Shop generators connect to each shop with the shop's approval.
+- [Shop API](shop_api.md) - Read products and their Torob statuses, turn products on or off, read the shop's product stats and clicks, and answer price reports. Shop generators connect to each shop with the shop's approval.
 
 ## Order Tracking API
 

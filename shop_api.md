@@ -28,8 +28,8 @@ sequenceDiagram
 ## 1. Introduction
 
 The Shop API lets shops and shop generators (shop builders) do from code what the Torob shop panel
-does: read the shop's products as Torob sees them, turn products on or off on Torob, and read the
-shop's product stats on Torob.
+does: read the shop's products as Torob sees them, turn products on or off on Torob, read the shop's
+product stats and clicks on Torob, and answer users' price reports.
 
 - **Shops** call the API for their own shop with a token they create in their Torob shop panel.
 - **Shop generators** call it on behalf of the shops built on their platform. Each shop must
@@ -178,6 +178,7 @@ All of the shop's products, newest first, with cursor pagination.
 | `cursor` | string | Optional | Taken from a previous `next` or `previous` link (an invalid cursor gets 400) |
 | `status` | string | Optional | Only products with this status (section 4.2), or `no_problem` |
 | `updated_since` | datetime | Optional | Only products changed at or after this time (ISO 8601; without an offset it is UTC) |
+| `product_id` | string, repeatable | Optional | Only these products, by your own product IDs: `?product_id=12412_1&product_id=12412_2`. At most 100 per request; IDs that match no product are left out |
 
 ```json
 {
@@ -205,24 +206,7 @@ To sync only changes, pass the largest `updated_at` you received, minus a few mi
 nothing is missed; some products may come back twice. URL-encode the value (an unencoded `+` in
 `+03:30` turns into a space), or send it in UTC with `Z`, for example `2026-10-07T08:00:00Z`.
 
-### 4.5. `POST /products/status/`
-
-The same product object for specific products.
-
-Body: `{"product_ids": ["12412_1", "missing"]}` — 1 to 5,000 of your product IDs, as strings.
-
-```json
-{
-  "results": [
-    {"product_id": "12412_1", "exists": true, "product": {"product_id": "12412_1", "statuses": [], "...": "..."}},
-    {"product_id": "missing", "exists": false, "product": null}
-  ]
-}
-```
-
-Results follow the order of `product_ids`.
-
-### 4.6. `POST /products/activate/` and `POST /products/deactivate/`
+### 4.5. `POST /products/activate/` and `POST /products/deactivate/`
 
 Turn products on or off on Torob. A deactivated product stops showing on Torob until it is
 activated again.
@@ -233,7 +217,7 @@ Body: `{"product_ids": ["12412_1", "missing"]}` — 1 to 5,000 product IDs.
 {"results": [{"product_id": "12412_1", "found": true}, {"product_id": "missing", "found": false}]}
 ```
 
-### 4.7. `GET /summary/`
+### 4.6. `GET /summary/`
 
 How many of the shop's products are in each group, and why products are not accessible. Use it to
 show the shop's Torob stats in your own dashboard.
@@ -267,6 +251,110 @@ show the shop's Torob stats in your own dashboard.
   products that `GET /products/?status=page_not_accessible` returns.
 - The numbers are not live: the counts are recomputed at least every two days, and the error
   reasons about once a day.
+
+### 4.7. `GET /clicks/`
+
+The clicks on the shop's products during one day (Tehran time), newest first, paginated.
+
+| Parameter | Type | Required | Description |
+| --------- | ---- | -------- | ----------- |
+| `domain` | string | Generators | The shop |
+| `date` | date | Yes | The day, `YYYY-MM-DD`, in Tehran time; a future day gets 400 |
+| `click_type` | string | Optional | Only `normal`, `adv_click_bid` (special clicks), or `torobpay` clicks |
+| `is_guaranteed` | boolean | Optional | `true` for only clicks with a guarantee buy-box cost |
+| `page` | integer | Optional | Page number, from 1 |
+| `page_size` | integer | Optional | Items per page, default 50, at most 500 |
+
+```json
+{
+  "count": 14,
+  "results": [
+    {
+      "product_id": "12412_1",
+      "product_url": "https://example.ir/product/34/",
+      "clicked_at": "2026-10-01T09:00:00+00:00",
+      "new_session": true,
+      "ip": "192.0.2.1",
+      "click_type": "normal",
+      "click_price": 500,
+      "product_price": 1250000,
+      "buybox_click_price": 0
+    }
+  ]
+}
+```
+
+| Field | Meaning |
+| ----- | ------- |
+| `product_id` | Your product ID; also present for products since deleted from Torob |
+| `product_url` | The product page; `null` for deleted products |
+| `new_session` | Whether this is the user's first click on the shop in a session |
+| `click_price` | What the click costs the shop, in tomans. Repeat clicks in a session, and clicks of shops that pay per order (CPO), cost 0 |
+| `product_price` | The product's price at click time, in tomans; 0 means out of stock |
+| `buybox_click_price` | The click's guarantee buy-box cost, in tomans |
+
+Clicks from the last six hours are not returned, because fake clicks are found and removed within
+that time. Today's list fills in during the day.
+
+### 4.8. `GET /price-reports/`
+
+Torob users' reports about the shop's prices or stock, as on the price report page of the shop
+panel, one item per product.
+
+| Parameter | Type | Required | Description |
+| --------- | ---- | -------- | ----------- |
+| `domain` | string | Generators | The shop |
+| `active_reports` | string | Optional | `active` (default) for current reports, or `inactive` for old ones |
+| `page` | integer | Optional | Page number, from 1 |
+| `page_size` | integer | Optional | Items per page, default 50, at most 500 |
+
+```json
+{
+  "count": 2,
+  "unanswered_count": 1,
+  "results": [
+    {
+      "report_id": 4521,
+      "product_id": "12412_1",
+      "product_name": "Phone",
+      "product_url": "https://example.ir/product/34/",
+      "torob_url": "https://torob.com/p/617ff459-4c95-4db1-a83b-de241313dcc2/",
+      "report_type": "price_change_after_order",
+      "status": "received",
+      "is_open": true,
+      "report_count": 3,
+      "first_reported_at": "2026-10-06T10:00:00+00:00",
+      "reported_at": "2026-10-07T08:00:00+00:00",
+      "price_at_report_time": 1250000,
+      "current_price": 1250000,
+      "user_descriptions": ["The price on the site was higher"]
+    }
+  ]
+}
+```
+
+- `status` is the latest answer: `received` (not answered), `claimed_to_be_corrected`,
+  `claimed_to_be_invalid`, or `invalidated_by_torob`.
+- A report is open (`is_open`) while the product's price and stock have not changed since it was
+  made. `unanswered_count` counts products with an open, unanswered report.
+
+### 4.9. `POST /price-reports/answer/`
+
+Answers the open reports of several products at once, as in the shop panel.
+
+Body: `{"report_ids": [4521], "status": "claimed_to_be_corrected", "description": "Fixed the price"}`
+
+- `report_ids`: 1 to 1,000 `report_id` values from the list above.
+- `status`: `claimed_to_be_corrected` (you fixed the price or stock) or `claimed_to_be_invalid` (the
+  report was wrong).
+- `description`: optional, at most 200 characters.
+
+```json
+{"answered_report_ids": [4521]}
+```
+
+Products without an open, unanswered report are left out of `answered_report_ids`. Torob downloads
+answered products again, and checks the price again after a `claimed_to_be_corrected` answer.
 
 ## 5. Errors and Limits
 
