@@ -50,11 +50,11 @@ Never send the token in the URL.
 
 ### 2.1. Shops
 
-Create a token on the **API access** page of your Torob shop panel
-(<https://panel.torob.com/s/apiAccess>). The token is shown only once; store it safely. Creating a
-new token revokes the previous one. The same page lists the shop generators connected to your shop
-and lets you disconnect them. Only users of the shop can create or revoke its token, and a
-token stops working if the user who created it is removed from the shop.
+Shop tokens are created on the **API access** page of the Torob shop panel
+(<https://panel.torob.com/s/apiAccess>). For now that page is open only to Torob support, so ask
+Torob support for a token. The token is shown only once; store it safely. Creating a new token
+revokes the previous one. A token stops working if the user who created it is removed from the
+shop.
 
 A shop token works only for its own shop. The `domain` parameter (section 4) is optional; if you
 send it, it must be your shop's domain.
@@ -134,7 +134,7 @@ calls for that shop return 403 until the shop approves a new connection.
 | ----- | ---- | ----------- |
 | `product_id` | string | Your product ID (the shop's own identifier) |
 | `page_url` | string | Product page on the shop's site |
-| `statuses` | list[string] | Torob statuses (section 4.2); empty when the product has no problem |
+| `statuses` | list[string] | Torob statuses in priority order (section 4.2); the first one is the product's main status. Empty when the product has no problem |
 | `price` | integer | Current price on Torob, in tomans |
 | `availability` | boolean | In stock |
 | `error_title` | string | The last crawl error, empty when none |
@@ -144,6 +144,11 @@ calls for that shop return 403 until the shop approves a new connection.
 Products removed permanently for technical reasons are not returned.
 
 ### 4.2. Product Statuses
+
+A product can have several statuses at once; for example, a deactivated product that is also out of
+stock has both. `statuses` lists them in the order of this table, and the first one is the
+product's **main status**, the one the shop panel shows in its product list. The `status` filter of
+`GET /products/` also works on the main status.
 
 | Status | Meaning |
 | ------ | ------- |
@@ -174,9 +179,9 @@ All of the shop's products, newest first, with cursor pagination.
 | Parameter | Type | Required | Description |
 | --------- | ---- | -------- | ----------- |
 | `domain` | string | Generators | The shop |
-| `page_size` | integer | Optional | Items per page, default 100, at most 500 |
+| `page_size` | integer | Optional | Items per page, default 100, at most 500; a larger value is treated as 500 |
 | `cursor` | string | Optional | Taken from a previous `next` or `previous` link (an invalid cursor gets 400) |
-| `status` | string | Optional | Only products with this status (section 4.2), or `no_problem` |
+| `status` | string | Optional | Only products whose main status is this one (section 4.2), or `no_problem` for products with no status; an unknown value gets 400 |
 | `updated_since` | datetime | Optional | Only products changed at or after this time (ISO 8601; without an offset it is UTC) |
 | `product_id` | string, repeatable | Optional | Only these products, by your own product IDs: `?product_id=12412_1&product_id=12412_2`. At most 100 per request; IDs that match no product are left out |
 
@@ -246,11 +251,9 @@ show the shop's Torob stats in your own dashboard.
 | `not_accessible_errors` | Why products are not accessible, largest first, in the same format as a product's `error_title` |
 | `calculated_at` | When these numbers were computed; `null` for a new shop before its first computation, with all counts 0 |
 
-- The groups do not overlap and add up to `total`. Product `statuses` (section 4.2) are independent
-  flags, and a product can have several, so `not_accessible` here is not necessarily the number of
-  products that `GET /products/?status=page_not_accessible` returns.
+- The groups do not overlap and add up to `total`.
 - The numbers are not live: the counts are recomputed at least every two days, and the error
-  reasons about once a day.
+  reasons about once a day. For current numbers, use `GET /products/` with the `status` filter.
 
 ### 4.7. `GET /clicks/`
 
