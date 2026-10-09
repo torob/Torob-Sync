@@ -138,7 +138,6 @@ calls for that shop return 403 until the shop approves a new connection.
 | `price` | integer | Current price on Torob, in tomans |
 | `availability` | boolean | In stock |
 | `error_title` | string | The last crawl error, empty when none |
-| `torob_url` | string or null | The product's page on Torob; null until Torob has matched it |
 | `updated_at` | datetime | When Torob last changed this product |
 
 Products removed permanently for technical reasons are not returned.
@@ -196,7 +195,6 @@ All of the shop's products, newest first, with cursor pagination.
       "price": 1250000,
       "availability": true,
       "error_title": "",
-      "torob_url": "https://torob.com/p/617ff459-4c95-4db1-a83b-de241313dcc2/",
       "updated_at": "2026-10-07T08:15:30.120000+00:00"
     }
   ]
@@ -228,7 +226,6 @@ Body: `{"product_ids": ["12412_1", "12412_2", "missing"]}` — 1 to 500 of your 
       "price": 980000,
       "availability": true,
       "error_title": "",
-      "torob_url": "https://torob.com/p/7c1d9e0a-3b52-4f7e-9b2a-1f0e5d6c4a11/",
       "updated_at": "2026-10-07T09:40:00+00:00"
     }
   ]
@@ -350,7 +347,6 @@ panel, one item per product.
       "product_id": "12412_1",
       "product_name": "Phone",
       "product_url": "https://example.ir/product/34/",
-      "torob_url": "https://torob.com/p/617ff459-4c95-4db1-a83b-de241313dcc2/",
       "report_type": "price_change_after_order",
       "status": "received",
       "is_open": true,
