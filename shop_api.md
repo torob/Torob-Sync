@@ -183,7 +183,6 @@ All of the shop's products, newest first, with cursor pagination.
 | `cursor` | string | Optional | Taken from a previous `next` or `previous` link (an invalid cursor gets 400) |
 | `status` | string | Optional | Only products whose main status is this one (section 4.2), or `no_problem` for products with no status; an unknown value gets 400 |
 | `updated_since` | datetime | Optional | Only products changed at or after this time (ISO 8601; without an offset it is UTC) |
-| `product_id` | string, repeatable | Optional | Only these products, by your own product IDs: `?product_id=12412_1&product_id=12412_2`. At most 100 per request; IDs that match no product are left out |
 
 ```json
 {
@@ -211,7 +210,37 @@ To sync only changes, pass the largest `updated_at` you received, minus a few mi
 nothing is missed; some products may come back twice. URL-encode the value (an unencoded `+` in
 `+03:30` turns into a space), or send it in UTC with `Z`, for example `2026-10-07T08:00:00Z`.
 
-### 4.5. `POST /products/activate/` and `POST /products/deactivate/`
+### 4.5. `POST /products/`
+
+The products with the IDs you send, in the same product shape as the list (section 4.1); for example,
+to check a few products after changing their prices on your site. The IDs go in the body so their
+number is not limited by the URL length.
+
+Body: `{"product_ids": ["12412_1", "12412_2", "missing"]}` — 1 to 500 of your product IDs.
+
+```json
+{
+  "results": [
+    {
+      "product_id": "12412_2",
+      "page_url": "https://example.ir/product/35/",
+      "statuses": ["page_not_active"],
+      "price": 980000,
+      "availability": true,
+      "error_title": "",
+      "torob_url": "https://torob.com/p/7c1d9e0a-3b52-4f7e-9b2a-1f0e5d6c4a11/",
+      "updated_at": "2026-10-07T09:40:00+00:00"
+    }
+  ]
+}
+```
+
+- Products come newest first. IDs that match no product are left out.
+- Everything comes back in one response, without pagination. More than 500 IDs get 400; split them
+  into several requests.
+- A product you activated or deactivated a moment ago shows its new state right away.
+
+### 4.6. `POST /products/activate/` and `POST /products/deactivate/`
 
 Turn products on or off on Torob. A deactivated product stops showing on Torob until it is
 activated again.
@@ -222,7 +251,7 @@ Body: `{"product_ids": ["12412_1", "missing"]}` — 1 to 5,000 product IDs.
 {"results": [{"product_id": "12412_1", "found": true}, {"product_id": "missing", "found": false}]}
 ```
 
-### 4.6. `GET /summary/`
+### 4.7. `GET /summary/`
 
 How many of the shop's products are in each group, and why products are not accessible. Use it to
 show the shop's Torob stats in your own dashboard.
@@ -255,7 +284,7 @@ show the shop's Torob stats in your own dashboard.
 - The numbers are not live: the counts are recomputed at least every two days, and the error
   reasons about once a day. For current numbers, use `GET /products/` with the `status` filter.
 
-### 4.7. `GET /clicks/`
+### 4.8. `GET /clicks/`
 
 The clicks on the shop's products during one day (Tehran time), newest first, paginated.
 
@@ -299,7 +328,7 @@ The clicks on the shop's products during one day (Tehran time), newest first, pa
 Clicks from the last six hours are not returned, because fake clicks are found and removed within
 that time. Today's list fills in during the day.
 
-### 4.8. `GET /price-reports/`
+### 4.9. `GET /price-reports/`
 
 Torob users' reports about the shop's prices or stock, as on the price report page of the shop
 panel, one item per product.
@@ -341,7 +370,7 @@ panel, one item per product.
 - A report is open (`is_open`) while the product's price and stock have not changed since it was
   made. `unanswered_count` counts products with an open, unanswered report.
 
-### 4.9. `POST /price-reports/answer/`
+### 4.10. `POST /price-reports/answer/`
 
 Answers the open reports of several products at once, as in the shop panel.
 
