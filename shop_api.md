@@ -5,7 +5,8 @@
 
 The Shop API lets shops and shop generators (shop builders) do from code what the Torob shop panel
 does: read the shop's products as Torob sees them, turn products on or off on Torob, read the shop's
-product stats and clicks on Torob, and answer users' price reports.
+product stats and clicks on Torob, answer users' price reports, and, for shops, transfer their
+charge to another shop.
 
 - **Shops** call the API for their own shop with a token they create in their Torob shop panel.
 - **Shop generators** call it on behalf of the shops built on their platform. Each shop must
@@ -306,6 +307,55 @@ Body: `{"report_ids": [4521], "status": "claimed_to_be_corrected", "description"
 
 Products without an open, unanswered report are left out of `answered_report_ids`. Torob downloads
 answered products again, and checks the price again after a `claimed_to_be_corrected` answer.
+
+### 3.11. `GET /charge-transfer/` and `POST /charge-transfer/`
+
+Transfer cash from the shop's balance to another shop on Torob, as on the charge transfer page of the
+shop panel. Preview with `GET`, then transfer with `POST`.
+
+- **Shop tokens only.** Shop generator tokens get 403.
+- The user who created the token must be allowed to transfer this shop's charge in the shop panel;
+  otherwise the request gets 403.
+- The destination can be any shop on Torob except the source shop.
+- A transfer cannot be undone: the charge does not come back to the source shop and is not refunded.
+
+**Preview:** `GET /charge-transfer/?destination=other.ir`
+
+```json
+{"destination": {"domain": "other.ir", "name": "Other shop"}, "transferable_cash": 20000}
+```
+
+`transferable_cash` is the cash that can be transferred now, in tomans.
+
+**Transfer:** `POST /charge-transfer/`
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `destination` | string | Yes | The destination shop's domain |
+| `amount` | integer | Yes | Tomans, from 1 to 10,000,000 and at most the transferable cash |
+| `request_id` | string | Yes | An ID you choose for this transfer: 1 to 40 characters of `A-Z`, `a-z`, `0-9`, `_`, and `-`. Use a new one for every new transfer |
+
+A successful transfer answers 201:
+
+```json
+{"request_id": "transfer-2026-10-10-1", "destination": {"domain": "other.ir", "name": "Other shop"}, "amount": 7000, "balance": 13000}
+```
+
+`balance` is the shop's balance after the transfer, in tomans.
+
+**Retrying:** if you did not get an answer (for example, the connection dropped), send the same
+request again with the **same** `request_id`. If the transfer already happened, you get 409 and no
+money moves again. Always use a new `request_id` for a new transfer.
+
+Errors look like `{"code": "insufficient_transferable_cash", "detail": "Not enough transferable cash."}`:
+
+| Status | `code` | Meaning |
+| ------ | ------ | ------- |
+| 400 | `self_transfer` | The destination is the source shop |
+| 400 | `insufficient_transferable_cash` | Not enough transferable cash |
+| 404 | `destination_not_found` | No shop on Torob has this domain |
+| 409 | `duplicate_request` | A transfer with this `request_id` was already made |
+| 503 | `balance_unavailable` | The balance cannot be computed now; try again a little later |
 
 ## 4. Errors and Limits
 
