@@ -30,7 +30,7 @@ sequenceDiagram
     Shop Generator->>Shop Generator: Check connection_id belongs to this session
     Shop Generator->>Torob: POST /shop-generator/v1/connections/{id}/confirm/ (code)
     Torob-->>Shop Generator: status: active
-    Shop Generator->>Torob: GET /shop-api/v1/products/?domain=... (Bearer token)
+    Shop Generator->>Torob: GET /shop-api/v1/shop/?domain=... (Bearer token)
 ```
 
 ## 1. Authentication
@@ -108,7 +108,7 @@ calls for that shop return 403 until the shop approves a new connection.
 ## 6. After Connecting
 
 Once the connection is `active`, call the [Shop API](shop_api.md) with the same token and send the
-shop's domain in the `domain` parameter, for example `/shop-api/v1/products/?domain=example.ir`.
+shop's domain in the `domain` parameter, for example `/shop-api/v1/shop/?domain=example.ir`.
 For a shop without an active connection, the Shop API returns 403. Every Shop API endpoint is open to shop generators except charge transfer, which only the shop's own token can use.
 
 ## 7. Example Request
