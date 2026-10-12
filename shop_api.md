@@ -71,7 +71,7 @@ Products removed permanently for technical reasons are not returned.
 A product can have several statuses at once; for example, a deactivated product that is also out of
 stock has both. `statuses` lists them in the order of this table, and the first one is the
 product's **main status**, the one the shop panel shows in its product list. The `status` filter of
-`GET /products/` also works on the main status.
+`POST /products/` also works on the main status.
 
 | Status | Meaning |
 | ------ | ------- |
@@ -89,106 +89,37 @@ product's **main status**, the one the shop panel shows in its product list. The
 
 ### 3.3. `GET /shop/`
 
-Returns the shop the request acts on. Use it to check your token or connection.
-
-```json
-{"domain": "example.ir", "name": "فروشگاه نمونه"}
-```
-
-### 3.4. `GET /products/`
-
-All of the shop's products, newest first, with cursor pagination.
-
-| Parameter | Type | Required | Description |
-| --------- | ---- | -------- | ----------- |
-| `domain` | string | Generators | The shop |
-| `page_size` | integer | Optional | Items per page, default 100, at most 500; a larger value is treated as 500 |
-| `cursor` | string | Optional | Taken from a previous `next` or `previous` link (an invalid cursor gets 400) |
-| `status` | string | Optional | Only products whose main status is this one (section 3.2), or `no_problem` for products with no status; an unknown value gets 400 |
-| `updated_since` | datetime | Optional | Only products changed at or after this time (ISO 8601; without an offset it is UTC) |
+Returns the shop the request acts on, its status on Torob, and a summary of its products. Use it to
+check your token or connection, or to show the shop's Torob stats in your own dashboard.
 
 ```json
 {
-  "previous": null,
-  "next": "https://api.torob.com/shop-api/v1/products/?cursor=cD0xMjM0NQ%3D%3D&domain=example.ir&page_size=100",
-  "results": [
-    {
-      "product_id": "12412_1",
-      "page_url": "https://example.ir/product/34/",
-      "statuses": [],
-      "price": 1250000,
-      "availability": true,
-      "error_title": "",
-      "updated_at": "2026-10-07T08:15:30.120000+00:00"
-    }
-  ]
+  "domain": "example.ir",
+  "name": "فروشگاه نمونه",
+  "shop_status": "active",
+  "product_summary": {
+    "calculated_at": "2026-10-07T13:00:00Z",
+    "total": 900,
+    "available": 600,
+    "not_available": 100,
+    "not_accessible": 100,
+    "not_active": 50,
+    "deleted": 50,
+    "not_accessible_errors": [{"error_title": "404:download_http_status_error", "count": 70}]
+  }
 }
 ```
 
-Follow `next` until it is `null`.
+`shop_status`:
 
-To sync only changes, pass the largest `updated_at` you received, minus a few minutes, as the next
-`updated_since`. A change can become visible a little after it happened, so the overlap makes sure
-nothing is missed; some products may come back twice. URL-encode the value (an unencoded `+` in
-`+03:30` turns into a space), or send it in UTC with `Z`, for example `2026-10-07T08:00:00Z`.
+| Value | Meaning |
+|---|---|
+| `active` | The shop's products are shown on Torob |
+| `blocked` | The shop is not shown; the reasons are in the Torob shop panel |
+| `crawler_check` | Not shown; the site must be checked again technically before the shop is activated |
+| `crawler_active` | Not shown; prices are being updated, and the shop is activated when that is done |
 
-### 3.5. `POST /products/`
-
-The products with the IDs you send, in the same product shape as the list (section 3.1); for example,
-to check a few products after changing their prices on your site. The IDs go in the body so their
-number is not limited by the URL length.
-
-Body: `{"product_ids": ["12412_1", "12412_2", "missing"]}` — 1 to 500 of your product IDs.
-
-```json
-{
-  "results": [
-    {
-      "product_id": "12412_2",
-      "page_url": "https://example.ir/product/35/",
-      "statuses": ["page_not_active"],
-      "price": 980000,
-      "availability": true,
-      "error_title": "",
-      "updated_at": "2026-10-07T09:40:00+00:00"
-    }
-  ]
-}
-```
-
-- Products come newest first. IDs that match no product are left out.
-- Everything comes back in one response, without pagination. More than 500 IDs get 400; split them
-  into several requests.
-- A product you activated or deactivated a moment ago shows its new state right away.
-
-### 3.6. `POST /products/activate/` and `POST /products/deactivate/`
-
-Turn products on or off on Torob. A deactivated product stops showing on Torob until it is
-activated again.
-
-Body: `{"product_ids": ["12412_1", "missing"]}` — 1 to 5,000 product IDs.
-
-```json
-{"results": [{"product_id": "12412_1", "found": true}, {"product_id": "missing", "found": false}]}
-```
-
-### 3.7. `GET /summary/`
-
-How many of the shop's products are in each group, and why products are not accessible. Use it to
-show the shop's Torob stats in your own dashboard.
-
-```json
-{
-  "calculated_at": "2026-10-07T13:00:00Z",
-  "total": 900,
-  "available": 600,
-  "not_available": 100,
-  "not_accessible": 100,
-  "not_active": 50,
-  "deleted": 50,
-  "not_accessible_errors": [{"error_title": "404:download_http_status_error", "count": 70}]
-}
-```
+`product_summary`:
 
 | Field | Meaning |
 |---|---|
@@ -203,9 +134,74 @@ show the shop's Torob stats in your own dashboard.
 
 - The groups do not overlap and add up to `total`.
 - The numbers are not live: the counts are recomputed at least every two days, and the error
-  reasons about once a day. For current numbers, use `GET /products/` with the `status` filter.
+  reasons about once a day. For current numbers, use `POST /products/` with the `status` filter.
 
-### 3.8. `GET /clicks/`
+### 3.4. `POST /products/`
+
+The shop's products, newest first, with cursor pagination. The filters go in the body, so the number
+of product IDs is not limited by the URL length; the request changes nothing.
+
+Query parameters:
+
+| Parameter | Type | Required | Description |
+| --------- | ---- | -------- | ----------- |
+| `domain` | string | Generators | The shop |
+| `page_size` | integer | Optional | Items per page, default 100, at most 500; a larger value is treated as 500 |
+| `cursor` | string | Optional | Taken from a previous `next` or `previous` link (an invalid cursor gets 400) |
+
+Body (every field is optional; send `{}` for all products):
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `product_ids` | list[string] | Only the products with these IDs, 1 to 500 of your product IDs. IDs that match no product are left out |
+| `status` | string | Only products whose main status is this one (section 3.2), or `no_problem` for products with no status; an unknown value gets 400 |
+| `updated_since` | datetime | Only products changed at or after this time (ISO 8601; without an offset it is UTC) |
+
+```bash
+curl --header "Content-Type: application/json" \
+     --header "Authorization: Bearer <token>" \
+     --request POST \
+     --data '{"status": "page_not_available"}' \
+     "https://api.torob.com/shop-api/v1/products/?domain=example.ir&page_size=100"
+```
+
+```json
+{
+  "previous": null,
+  "next": "https://api.torob.com/shop-api/v1/products/?cursor=cD0xMjM0NQ%3D%3D&domain=example.ir&page_size=100",
+  "results": [
+    {
+      "product_id": "12412_1",
+      "page_url": "https://example.ir/product/34/",
+      "statuses": ["page_not_available"],
+      "price": 1250000,
+      "availability": false,
+      "error_title": "",
+      "updated_at": "2026-10-07T08:15:30.120000+00:00"
+    }
+  ]
+}
+```
+
+- POST the **same body** to `next` until it is `null`.
+- To sync only changes, send the largest `updated_at` you received, minus a few minutes, as the next
+  `updated_since`. A change can become visible a little after it happened, so the overlap makes sure
+  nothing is missed; some products may come back twice.
+- With `product_ids`, a product you activated or deactivated a moment ago shows its new state right
+  away. More than 500 IDs get 400; split them into several requests.
+
+### 3.5. `POST /products/activate/` and `POST /products/deactivate/`
+
+Turn products on or off on Torob. A deactivated product stops showing on Torob until it is
+activated again.
+
+Body: `{"product_ids": ["12412_1", "missing"]}` — 1 to 5,000 product IDs.
+
+```json
+{"results": [{"product_id": "12412_1", "found": true}, {"product_id": "missing", "found": false}]}
+```
+
+### 3.6. `GET /clicks/`
 
 The clicks on the shop's products during one day (Tehran time), newest first, paginated.
 
@@ -249,7 +245,7 @@ The clicks on the shop's products during one day (Tehran time), newest first, pa
 Clicks from the last six hours are not returned, because fake clicks are found and removed within
 that time. Today's list fills in during the day.
 
-### 3.9. `GET /price-reports/`
+### 3.7. `GET /price-reports/`
 
 Torob users' reports about the shop's prices or stock, as on the price report page of the shop
 panel, one item per product.
@@ -290,7 +286,7 @@ panel, one item per product.
 - A report is open (`is_open`) while the product's price and stock have not changed since it was
   made. `unanswered_count` counts products with an open, unanswered report.
 
-### 3.10. `POST /price-reports/answer/`
+### 3.8. `POST /price-reports/answer/`
 
 Answers the open reports of several products at once, as in the shop panel.
 
@@ -308,7 +304,7 @@ Body: `{"report_ids": [4521], "status": "claimed_to_be_corrected", "description"
 Products without an open, unanswered report are left out of `answered_report_ids`. Torob downloads
 answered products again, and checks the price again after a `claimed_to_be_corrected` answer.
 
-### 3.11. `GET /charge-transfer/` and `POST /charge-transfer/`
+### 3.9. `GET /charge-transfer/` and `POST /charge-transfer/`
 
 Transfer cash from the shop's balance to another shop on Torob, as on the charge transfer page of the
 shop panel. Preview with `GET`, then transfer with `POST`.
@@ -376,7 +372,10 @@ per request) instead of sending one request per product.
 ### List Products (Shop Generator)
 
 ```bash
-curl --header "Authorization: Bearer <token>" \
+curl --header "Content-Type: application/json" \
+     --header "Authorization: Bearer <token>" \
+     --request POST \
+     --data '{}' \
      "https://api.torob.com/shop-api/v1/products/?domain=example.ir&page_size=100"
 ```
 
