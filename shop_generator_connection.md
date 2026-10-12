@@ -43,10 +43,16 @@ sequenceDiagram
 ## Basics
 
 - **Base URL**: `https://api.torob.com/shop-generator/v1/`
-- **Authentication**: the partner token Torob gave your platform, sent as
-  `Authorization: Bearer <token>`. It only works from your registered IP addresses. The same token
-  is used for the Shop API once a shop is connected.
 - **Format**: request bodies and responses are JSON.
+- **Authentication**: the partner token Torob gave your platform. It only works from your
+  registered IP addresses. The same token is used for the Shop API once a shop is connected.
+
+Every request sends these headers:
+
+| Header | Value | Required |
+| ------ | ----- | -------- |
+| `Authorization` | `Bearer <token>` | Yes |
+| `Content-Type` | `application/json` | For requests with a body (`POST`) |
 
 ## Endpoints
 
@@ -59,33 +65,35 @@ sequenceDiagram
 
 ## Connection Object
 
+Every endpoint except `DELETE` returns a connection:
+
 | Field | Type | Description |
 | ----- | ---- | ----------- |
-| `connection_id` | string (UUID) | Connection ID |
-| `shop_domain` | string | The shop's domain on Torob |
-| `status` | string | One of the statuses below |
-| `approve_url` | string or null | The page to send the merchant's browser to; set only while `pending` |
+| `connection_id` | string, UUID (36 characters, e.g. `75a60226-4997-4ae3-bd10-68f7014e0779`) | Connection ID. A shop generator has one connection per shop, and this ID never changes |
+| `shop_domain` | string | The shop's domain as registered on Torob, e.g. `example.ir` |
+| `status` | string, one of `pending`, `approved`, `active`, `revoked`, `expired` | The connection's status (below) |
+| `approve_url` | string (https URL) or null | The page to send the merchant's browser to. A URL only while `status` is `pending`; `null` otherwise |
 
-| Status | Meaning |
-| ------ | ------- |
+| `status` | Meaning |
+| -------- | ------- |
 | `pending` | Waiting for the merchant to approve |
 | `approved` | The merchant approved; waiting for the shop generator to confirm |
 | `active` | Connected; the Shop API can be called for this shop |
 | `revoked` | The merchant denied, or the shop generator or the shop disconnected |
 | `expired` | 15 minutes passed before the connection became active |
 
-A shop generator has one connection per shop, and its `connection_id` never changes.
-
 ## Request a Connection
 
 `POST /shop-generator/v1/connections/`
 
+### Request
+
+Body:
+
 | Field | Type | Required | Description |
 | ----- | ---- | -------- | ----------- |
-| `shop_domain` | string | Yes | The shop's domain; case and a leading `www.` are ignored |
-| `return_url` | string | Yes | Where the merchant's browser returns after approving or denying. Must be `https`; `http` is accepted only for `localhost` and `127.0.0.1` |
-
-### Request
+| `shop_domain` | string | Yes | The shop's domain, e.g. `example.ir`. Case and a leading `www.` are ignored |
+| `return_url` | string (URL) | Yes | Where the merchant's browser returns after approving or denying. Must be `https`; `http` is accepted only for `localhost` and `127.0.0.1`. It may have its own query parameters |
 
 ```http
 POST /shop-generator/v1/connections/ HTTP/1.1
@@ -96,9 +104,16 @@ Content-Type: application/json
 {"shop_domain": "example.ir", "return_url": "https://generator.example/torob/callback?merchant=42"}
 ```
 
-### Responses
+### Response
 
-**200 OK**: the request is open. Send the merchant's browser to `approve_url`.
+**200 OK**: a connection object.
+
+| Field | Type | Value |
+| ----- | ---- | ----- |
+| `connection_id` | string, UUID (36 characters) | The connection's ID; the same as before if this shop was requested earlier |
+| `shop_domain` | string | The shop's domain on Torob |
+| `status` | string, `pending` or `active` | `pending`: the request is open. `active`: already connected; the connection is returned unchanged |
+| `approve_url` | string (https URL) or null | A URL when `status` is `pending`; `null` when `active` |
 
 ```json
 {
@@ -109,8 +124,6 @@ Content-Type: application/json
 }
 ```
 
-**200 OK**: already connected to this shop. The active connection is returned unchanged.
-
 ```json
 {
   "connection_id": "75a60226-4997-4ae3-bd10-68f7014e0779",
@@ -120,38 +133,40 @@ Content-Type: application/json
 }
 ```
 
-**400 Bad Request**: a field is missing or has the wrong type, or `return_url` is not `https`.
+If the connection is not active, requesting again makes the same connection `pending` again. The
+15 minutes start over, the new `return_url` replaces the old one, and a code that was not confirmed
+stops working.
+
+**Errors**:
+
+| Status | Field | Type | Value | When |
+| ------ | ----- | ---- | ----- | ---- |
+| 400 | `error` | string | `invalid request body` | A field is missing or has the wrong type, or `return_url` is not `https` |
+| 400 | `detail` | string | `Cannot parse request body (...)` | The body is not valid JSON |
+| 404 | `error` | string | `No shop has this domain.` | No shop on Torob has this domain |
 
 ```json
 {"error": "invalid request body"}
 ```
 
-**400 Bad Request**: the body is not valid JSON.
-
 ```json
 {"detail": "Cannot parse request body (Expecting value: line 1 column 1 (char 0))"}
 ```
 
-**404 Not Found**: no shop on Torob has this domain.
-
 ```json
 {"error": "No shop has this domain."}
 ```
-
-If the connection is not active, requesting again makes the same connection `pending` again. The
-15 minutes start over, the new `return_url` replaces the old one, and a code that was not confirmed
-stops working.
 
 ## Approval Callback
 
 This is not an API call. After the merchant decides on `approve_url`, Torob redirects their browser
 to `return_url` with these query parameters added. Parameters already in `return_url` are kept.
 
-| Parameter | Sent when | Description |
-| --------- | --------- | ----------- |
-| `connection_id` | Always | The connection |
-| `code` | Approved | One-time code for confirming, a 43-character string |
-| `error` | Denied | Always `denied`; the connection is now `revoked` |
+| Parameter | Type | Sent when | Description |
+| --------- | ---- | --------- | ----------- |
+| `connection_id` | string, UUID (36 characters) | Always | The connection |
+| `code` | string, 43 characters of `A-Z`, `a-z`, `0-9`, `-`, `_` | Approved | One-time code for confirming, valid until the 15 minutes run out |
+| `error` | string, always `denied` | Denied | The merchant denied; the connection is now `revoked` |
 
 Approved:
 
@@ -175,15 +190,28 @@ sees an error on Torob's page.
 
 ### Request
 
+Path parameters:
+
+| Parameter | Type | Required | Description |
+| --------- | ---- | -------- | ----------- |
+| `connection_id` | string, UUID (36 characters) | Yes | The `connection_id` from Request a Connection |
+
 ```http
 GET /shop-generator/v1/connections/75a60226-4997-4ae3-bd10-68f7014e0779/ HTTP/1.1
 Host: api.torob.com
 Authorization: Bearer <token>
 ```
 
-### Responses
+### Response
 
-**200 OK**: the connection.
+**200 OK**: a connection object.
+
+| Field | Type | Value |
+| ----- | ---- | ----- |
+| `connection_id` | string, UUID (36 characters) | The requested connection's ID |
+| `shop_domain` | string | The shop's domain on Torob |
+| `status` | string, one of `pending`, `approved`, `active`, `revoked`, `expired` | The current status |
+| `approve_url` | string (https URL) or null | A URL when `status` is `pending`; `null` otherwise |
 
 ```json
 {
@@ -194,13 +222,16 @@ Authorization: Bearer <token>
 }
 ```
 
-**400 Bad Request**: `connection_id` is not a UUID.
+**Errors**:
+
+| Status | Field | Type | Value | When |
+| ------ | ----- | ---- | ----- | ---- |
+| 400 | `error` | string | `invalid request body` | `connection_id` is not a UUID |
+| 404 | `error` | string | `Connection not found.` | There is no such connection, or it belongs to another shop generator |
 
 ```json
 {"error": "invalid request body"}
 ```
-
-**404 Not Found**: there is no such connection, or it belongs to another shop generator.
 
 ```json
 {"error": "Connection not found."}
@@ -210,11 +241,19 @@ Authorization: Bearer <token>
 
 `POST /shop-generator/v1/connections/{connection_id}/confirm/`
 
+### Request
+
+Path parameters:
+
+| Parameter | Type | Required | Description |
+| --------- | ---- | -------- | ----------- |
+| `connection_id` | string, UUID (36 characters) | Yes | The `connection_id` from the approval callback |
+
+Body:
+
 | Field | Type | Required | Description |
 | ----- | ---- | -------- | ----------- |
-| `code` | string | Yes | The `code` from the approval callback |
-
-### Request
+| `code` | string, 43 characters | Yes | The `code` from the approval callback |
 
 ```http
 POST /shop-generator/v1/connections/75a60226-4997-4ae3-bd10-68f7014e0779/confirm/ HTTP/1.1
@@ -225,9 +264,16 @@ Content-Type: application/json
 {"code": "hgx8duhEXiUmcMnxiULEzt-ZccOYFD3pfs-NEXXNeP0"}
 ```
 
-### Responses
+### Response
 
-**200 OK**: the connection is active.
+**200 OK**: a connection object; the connection is active.
+
+| Field | Type | Value |
+| ----- | ---- | ----- |
+| `connection_id` | string, UUID (36 characters) | The confirmed connection's ID |
+| `shop_domain` | string | The shop's domain on Torob |
+| `status` | string | Always `active` |
+| `approve_url` | null | Always `null` |
 
 ```json
 {
@@ -238,20 +284,21 @@ Content-Type: application/json
 }
 ```
 
-**400 Bad Request**: `code` is missing, or `connection_id` is not a UUID.
+**Errors**:
+
+| Status | Field | Type | Value | When |
+| ------ | ----- | ---- | ----- | ---- |
+| 400 | `error` | string | `invalid request body` | `code` is missing, or `connection_id` is not a UUID |
+| 400 | `error` | string | `The code is invalid, used or expired.` | The code is wrong or already used, the 15 minutes have passed, or the connection's status is not `approved` (for example, still `pending` or already `active`) |
+| 404 | `error` | string | `Connection not found.` | There is no such connection, or it belongs to another shop generator |
 
 ```json
 {"error": "invalid request body"}
 ```
 
-**400 Bad Request**: the code is wrong or already used, the 15 minutes have passed, or the
-connection is not `approved` (for example, still `pending` or already `active`).
-
 ```json
 {"error": "The code is invalid, used or expired."}
 ```
-
-**404 Not Found**: there is no such connection, or it belongs to another shop generator.
 
 ```json
 {"error": "Connection not found."}
@@ -266,23 +313,32 @@ status becomes `revoked`, and Shop API calls for the shop return 403.
 
 ### Request
 
+Path parameters:
+
+| Parameter | Type | Required | Description |
+| --------- | ---- | -------- | ----------- |
+| `connection_id` | string, UUID (36 characters) | Yes | The connection to disconnect |
+
 ```http
 DELETE /shop-generator/v1/connections/75a60226-4997-4ae3-bd10-68f7014e0779/ HTTP/1.1
 Host: api.torob.com
 Authorization: Bearer <token>
 ```
 
-### Responses
+### Response
 
-**204 No Content**: disconnected. Repeating the request also returns 204.
+**204 No Content**: disconnected. There is no body. Repeating the request also returns 204.
 
-**400 Bad Request**: `connection_id` is not a UUID.
+**Errors**:
+
+| Status | Field | Type | Value | When |
+| ------ | ----- | ---- | ----- | ---- |
+| 400 | `error` | string | `invalid request body` | `connection_id` is not a UUID |
+| 404 | `error` | string | `Connection not found.` | There is no such connection, or it belongs to another shop generator |
 
 ```json
 {"error": "invalid request body"}
 ```
-
-**404 Not Found**: there is no such connection, or it belongs to another shop generator.
 
 ```json
 {"error": "Connection not found."}
@@ -290,14 +346,14 @@ Authorization: Bearer <token>
 
 ## Errors on Every Endpoint
 
-**401 Unauthorized**: the token is missing or invalid, or the request came from an IP address the
-token does not allow.
+| Status | Field | Type | Value | When |
+| ------ | ----- | ---- | ----- | ---- |
+| 401 | `detail` | string | `Unauthorized` | The token is missing or invalid, or the request came from an IP address the token does not allow |
+| 403 | `detail` | string | `Only shop generator tokens can manage shop connections.` | The token is not a shop generator token, for example a shop's own token |
 
 ```json
 {"detail": "Unauthorized"}
 ```
-
-**403 Forbidden**: the token is not a shop generator token, for example a shop's own token.
 
 ```json
 {"detail": "Only shop generator tokens can manage shop connections."}
