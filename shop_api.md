@@ -89,14 +89,24 @@ product's **main status**, the one the shop panel shows in its product list. The
 
 ### 3.3. `GET /shop/`
 
-Returns the shop the request acts on, its status on Torob, and a summary of its products. Use it to
-check your token or connection, or to show the shop's Torob stats in your own dashboard.
+Returns the shop the request acts on, its status on Torob, why it is blocked, and a summary of its
+products. Use it to check your token or connection, or to show the shop's Torob stats in your own
+dashboard.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `domain` | string | The shop's domain |
+| `name` | string | The shop's name on Torob |
+| `shop_status` | string | The shop's status on Torob (table below) |
+| `block_reasons` | list[string] | Why the shop is blocked, most important first (table below); empty when the shop is `active` |
+| `product_summary` | object | A summary of the shop's products (table below) |
 
 ```json
 {
   "domain": "example.ir",
   "name": "فروشگاه نمونه",
   "shop_status": "active",
+  "block_reasons": [],
   "product_summary": {
     "calculated_at": "2026-10-07T13:00:00Z",
     "total": 900,
@@ -115,9 +125,52 @@ check your token or connection, or to show the shop's Torob stats in your own da
 | Value | Meaning |
 |---|---|
 | `active` | The shop's products are shown on Torob |
-| `blocked` | The shop is not shown; the reasons are in the Torob shop panel |
+| `blocked` | The shop is not shown, for the reasons in `block_reasons` |
 | `crawler_check` | Not shown; the site must be checked again technically before the shop is activated |
 | `crawler_active` | Not shown; prices are being updated, and the shop is activated when that is done |
+
+`block_reasons`:
+
+A shop can have several reasons at once. The list follows the order of this table, so the first one
+is the most important; the Torob shop panel shows them in the same order. New reasons may be added
+to this table later.
+
+| Order | Reason | Meaning |
+| ----- | ------ | ------- |
+| 1 | `permanent` | Removed from Torob permanently; it is not activated again |
+| 2 | `scammer` | Fraudulent activity |
+| 3 | `scammer_candidate` | Overlap with other unreliable sellers |
+| 4 | `torobpay_violation` | A Torob Pay violation |
+| 5 | `poor_performance` | Poor performance |
+| 6 | `unreliable` | Poor service quality |
+| 7 | `complaints` | Many users followed up on their orders |
+| 8 | `supervision` | Under Torob's supervision and review |
+| 9 | `suspicious` | Needs a review by Torob |
+| 10 | `not_identified` | The seller's identity is not verified |
+| 11 | `identification_in_progress` | The seller's identity verification is being reviewed |
+| 12 | `expired_enamad` | The shop's eNamad has expired |
+| 13 | `content_problems` | Content problems |
+| 14 | `content_missing_brand_or_product_details` | Brands or correct product details are missing |
+| 15 | `content_unrealistic_or_deceptive_pricing` | Unrealistic or deceptive prices |
+| 16 | `content_incorrect_or_misleading_product_details` | Wrong or misleading product details |
+| 17 | `content_prohibited_product` | Prohibited goods are offered |
+| 18 | `content_inappropriate_images` | Inappropriate images |
+| 19 | `technical_issue` | The site's technical structure does not work with Torob |
+| 20 | `not_updated_price_availability` | Prices or stock are not kept up to date |
+| 21 | `shop_unavailable` | The shop's site is unreachable |
+| 22 | `in_debt` | The shop's account balance is not enough; charging the account lifts it |
+| 23 | `by_shop` | The shop turned itself off in the shop panel, where it can turn itself on again |
+| 24 | `is_not_partner` | The shop is not a Torob partner |
+| 25 | `crawler_check` | The site must be checked technically. A `crawler_check` shop always has this reason |
+| 26 | `updating_products` | Prices are being updated. A `crawler_active` shop always has this reason |
+| 27 | `budget_limit` | The daily budget the shop set is used up; lifted automatically the next day, or when the shop raises its budget |
+| 28 | `clicks_limit` | The shop reached its daily click limit; lifted automatically the next day |
+| 29 | `click_level_limit` | The shop reached the daily click limit of its click level; lifted automatically the next day |
+| 30 | `orders_limit` | The shop reached the daily order limit of its level; lifted automatically the next day |
+| - | `other` | Shop generator tokens only: one `other` replaces reasons 1 to 9 (Torob's reviews of the shop's trust and conduct), in the place of the most important of them. The shop sees those reasons in its panel and with its own token |
+
+For example, a shop blocked for `supervision` and `in_debt` gets `["supervision", "in_debt"]` with
+its own token, and a shop generator gets `["other", "in_debt"]`.
 
 `product_summary`:
 
@@ -133,6 +186,7 @@ check your token or connection, or to show the shop's Torob stats in your own da
 | `calculated_at` | When these numbers were computed; `null` for a new shop before its first computation, with all counts 0 |
 
 - The groups do not overlap and add up to `total`.
+- `block_reasons` is live.
 - The numbers are not live: the counts are recomputed at least every two days, and the error
   reasons about once a day. For current numbers, use `POST /products/` with the `status` filter.
 
