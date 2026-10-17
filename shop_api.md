@@ -58,7 +58,7 @@ the `domain` parameter of every request.
 | ----- | ---- | ----------- |
 | `product_id` | string | Your product ID (the shop's own identifier) |
 | `page_url` | string | Product page on the shop's site |
-| `statuses` | list[string] | Torob statuses in priority order (section 3.2); the first one is the product's main status. Empty when the product has no problem |
+| `statuses` | list[string] | Torob statuses in priority order ([section 3.2](#32-product-statuses)); the first one is the product's main status. Empty when the product has no problem |
 | `price` | integer | Current price on Torob, in tomans |
 | `availability` | boolean | In stock |
 | `error_title` | string | The last crawl error, empty when none |
@@ -154,7 +154,7 @@ Body (every field is optional; send `{}` for all products):
 | Field | Type | Description |
 | ----- | ---- | ----------- |
 | `product_ids` | list[string] | Only the products with these IDs, 1 to 500 of your product IDs. IDs that match no product are left out |
-| `status` | string | Only products whose main status is this one (section 3.2), or `no_problem` for products with no status; an unknown value gets 400 |
+| `status` | string | Only products whose main status is this one ([section 3.2](#32-product-statuses)), or `no_problem` for products with no status; an unknown value gets 400 |
 | `updated_since` | datetime | Only products changed at or after this time (ISO 8601; without an offset it is UTC) |
 
 ```bash
